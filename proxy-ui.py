@@ -9,7 +9,7 @@ import time
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 
-PROXY = "/usr/local/bin/proxy"
+PROXY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxy")
 LOG_FILE = os.path.expanduser("~/.proxy.log")
 ENV_FILE = os.path.expanduser("~/.proxy_env")
 CONF_FILE = os.path.expanduser("~/.proxy.conf")
