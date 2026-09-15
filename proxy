@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# proxy - VM network switcher: direct OR bridge to a host-side proxy
+# usage: proxy on|off|status|test
+# config: ~/.proxy.conf  (PROXY_HOST / TEST_URL / NO_PROXY_LIST, shell-sourceable)
+PROXY_HOST="192.168.18.1:7897"
+TEST_URL="https://github.com"
+NO_PROXY_LIST="localhost,127.0.0.1,::1,192.168.18.1,192.168.18.2,192.168.18.129"
+ENV_FILE="$HOME/.proxy_env"
+LOG_FILE="$HOME/.proxy.log"
+CONF_FILE="$HOME/.proxy.conf"
+
+# user config overrides defaults
+[ -f "$CONF_FILE" ] && . "$CONF_FILE"
+
+log_line() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+do_on() {
+  cat > "$ENV_FILE" <<EOF
+export http_proxy="http://${PROXY_HOST}"
+export https_proxy="http://${PROXY_HOST}"
+export all_proxy="socks5://${PROXY_HOST}"
+export HTTP_PROXY="http://${PROXY_HOST}"
+export HTTPS_PROXY="http://${PROXY_HOST}"
+export ALL_PROXY="socks5://${PROXY_HOST}"
+export no_proxy="${NO_PROXY_LIST}"
+export NO_PROXY="${NO_PROXY_LIST}"
+EOF
+  log_line "ON -> ${PROXY_HOST}"
+  echo "[proxy] ON  -> ${PROXY_HOST}"
+  echo "[proxy] NEW terminals apply automatically; current shell: run 'source ~/.proxy_env'"
+}
+
+do_off() {
+  rm -f "$ENV_FILE"
+  log_line "OFF"
+  echo "[proxy] OFF (env file removed; new terminals will be direct)"
+  echo "[proxy] current shell cleanup: unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY no_proxy NO_PROXY"
+}
+
+do_test() {
+  local d v
+  d=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$TEST_URL" 2>/dev/null)
+  v=$(curl -x "http://${PROXY_HOST}" -s -o /dev/null -w '%{http_code}' --max-time 12 "$TEST_URL" 2>/dev/null)
+  echo "[proxy] direct    ${TEST_URL}: ${d:-fail}"
+  echo "[proxy] via-proxy ${TEST_URL}: ${v:-fail}"
+  log_line "TEST direct=${d:-fail} via=${v:-fail}"
+}
+
+do_status() {
+  if [ -f "$ENV_FILE" ]; then
+    echo "[proxy] state: ON (applies to NEW terminals)"
+  else
+    echo "[proxy] state: OFF"
+  fi
+  echo "[proxy] bridge: ${PROXY_HOST}"
+  echo -n "[proxy] host proxy port: "
+  if timeout 3 bash -c "cat < /dev/null > /dev/tcp/${PROXY_HOST%:*}/${PROXY_HOST#*:}" 2>/dev/null; then
+    echo "reachable"
+  else
+    echo "UNREACHABLE (is the host proxy running?)"
+  fi
+  do_test
+}
+
+case "$1" in
+  on) do_on ;;
+  off) do_off ;;
+  status) do_status ;;
+  test) do_test ;;
+  *) echo "usage: proxy on|off|status|test"; exit 1 ;;
+esac
