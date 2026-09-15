@@ -56,8 +56,8 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title("网络代理桥 - VM")
-        root.geometry("600x500")
-        root.minsize(520, 420)
+        root.geometry("780x560")
+        root.minsize(640, 460)
 
         self.status = tk.Label(root, text="...", font=("Sans", 13, "bold"), pady=6)
         self.status.pack(fill="x")
