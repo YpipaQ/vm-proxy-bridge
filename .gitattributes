@@ -1,0 +1,4 @@
+# keep shell scripts LF — CRLF breaks them on Linux
+*.sh text eol=lf
+proxy text eol=lf
+proxy-ui.py text eol=lf
