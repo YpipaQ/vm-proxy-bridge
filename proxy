@@ -1,22 +1,80 @@
 #!/usr/bin/env bash
-# proxy - VM network switcher: direct OR bridge to a host-side proxy
-# usage: proxy on|off|status|test
-# config: ~/.proxy.conf  (PROXY_HOST / TEST_URL / NO_PROXY_LIST, shell-sourceable)
-PROXY_HOST="192.168.18.1:7897"
+# proxy - VM network switcher for NAT'd Linux guests
+#
+# Two modes (v2):
+#   MODE=env      (default) legacy: export *_proxy env vars -> new terminals
+#                            dial the host proxy directly (192.168.18.1:7897)
+#   MODE=forward            new: a local TCP forwarder maps a loopback port
+#                            (127.0.0.1:7897) onto the host proxy, so apps
+#                            that ignore env vars still get proxied.
+#
+# usage:
+#   proxy on|off|status|test                   # act on the current MODE
+#   proxy mode env|forward|show                # switch / show mode
+#   proxy forward-on|forward-off|forward-status
+#
+# config: ~/.proxy.conf (shell-sourceable: PROXY_HOST / TEST_URL /
+#         NO_PROXY_LIST / MODE / BIND_HOST / BIND_PORT / FORWARD_LOG)
+set -u
+
+# ---------------- defaults ----------------
+PROXY_HOST="192.168.18.1:7897"          # upstream (host-side) proxy
+BIND_HOST="127.0.0.1"                   # local listen address for forward mode
+BIND_PORT="7897"                        # local listen port for forward mode
 TEST_URL="https://github.com"
 NO_PROXY_LIST="localhost,127.0.0.1,::1,192.168.18.1,192.168.18.2,192.168.18.129"
+MODE="env"                              # env | forward
+FORWARD_LOG="$HOME/.proxy-forward.log"
+PID_FILE="$HOME/.proxy-forward.pid"
+
 ENV_FILE="$HOME/.proxy_env"
 LOG_FILE="$HOME/.proxy.log"
 CONF_FILE="$HOME/.proxy.conf"
+FORWARD_BIN="$(dirname "$(readlink -f "$0")")/proxy-forward"
 
-# user config overrides defaults
+# ---------------- user config ----------------
+# shellcheck disable=SC1090
 [ -f "$CONF_FILE" ] && . "$CONF_FILE"
 
 log_line() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE" 2>/dev/null
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE" 2>/dev/null
 }
 
-do_on() {
+# 明确的连通确认（用户要求：真实连通时日志中给出明确确认）
+confirm_ok() {
+  log_line "CONFIRMED $1"
+  echo "[proxy] ✓ 已确认连通：$1"
+}
+
+confirm_fail() {
+  log_line "FAILED $1"
+  echo "[proxy] ✗ 未连通：$1"
+}
+
+# ---------------- helpers ----------------
+port_open() {   # host port [timeout]
+  timeout "${3:-3}" bash -c "cat < /dev/null > /dev/tcp/$1/$2" 2>/dev/null
+}
+
+probe_http() {  # url [proxy-url]
+  if [ -n "${2:-}" ]; then
+    curl -x "$2" -s -o /dev/null -w '%{http_code}' --max-time 12 "$1" 2>/dev/null
+  else
+    curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$1" 2>/dev/null
+  fi
+}
+
+fwd_pid() {     # echo pid if forwarder alive, else empty
+  [ -f "$PID_FILE" ] || return 1
+  local p
+  p=$(cat "$PID_FILE" 2>/dev/null)
+  [ -n "$p" ] && kill -0 "$p" 2>/dev/null && echo "$p"
+}
+
+fwd_running() { [ -n "$(fwd_pid)" ]; }
+
+# ---------------- MODE=env (legacy, unchanged behaviour) ----------------
+env_on() {
   cat > "$ENV_FILE" <<EOF
 export http_proxy="http://${PROXY_HOST}"
 export https_proxy="http://${PROXY_HOST}"
@@ -27,47 +85,210 @@ export ALL_PROXY="socks5://${PROXY_HOST}"
 export no_proxy="${NO_PROXY_LIST}"
 export NO_PROXY="${NO_PROXY_LIST}"
 EOF
-  log_line "ON -> ${PROXY_HOST}"
-  echo "[proxy] ON  -> ${PROXY_HOST}"
-  echo "[proxy] NEW terminals apply automatically; current shell: run 'source ~/.proxy_env'"
+  log_line "MODE=env ON -> ${PROXY_HOST}"
+  echo "[proxy] MODE=env  ON  -> ${PROXY_HOST}"
+  echo "[proxy] 新开终端自动生效；当前终端执行：source ~/.proxy_env"
+}
+
+env_off() {
+  rm -f "$ENV_FILE"
+  log_line "MODE=env OFF"
+  echo "[proxy] MODE=env  OFF（新终端恢复直连）"
+  echo "[proxy] 当前终端清理：unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY no_proxy NO_PROXY"
+}
+
+# ---------------- MODE=forward (new) ----------------
+forward_on() {
+  if [ ! -x "$FORWARD_BIN" ] && [ ! -f "$FORWARD_BIN" ]; then
+    echo "[proxy] !! 未找到转发器：$FORWARD_BIN"
+    log_line "MODE=forward FAIL 缺少转发器 $FORWARD_BIN"
+    return 1
+  fi
+  # 安全闸门：本地监听只允许回环地址（防开放代理暴露到局域网）
+  case "$BIND_HOST" in
+    127.0.0.1|localhost|::1) : ;;
+    *)
+      echo "[proxy] !! 拒绝绑定非回环地址 ${BIND_HOST}：会把无鉴权转发端口暴露给局域网"
+      echo "[proxy]    如需强制，请直接运行 proxy-forward --allow-remote"
+      log_line "MODE=forward FAIL 非回环绑定被拒 ${BIND_HOST}"
+      return 1 ;;
+  esac
+  if fwd_running; then
+    echo "[proxy] 转发已在运行（PID $(fwd_pid)）"
+    return 0
+  fi
+  # 端口占用预检（非本程序占用则明确报错）
+  if port_open "$BIND_HOST" "$BIND_PORT" 1; then
+    echo "[proxy] !! 本地端口 ${BIND_HOST}:${BIND_PORT} 已被其他程序占用，无法转发"
+    log_line "MODE=forward FAIL 端口 ${BIND_HOST}:${BIND_PORT} 被占用"
+    return 1
+  fi
+
+  # 同时生成 env 文件：让读环境变量的程序也走本地环回端口
+  cat > "$ENV_FILE" <<EOF
+export http_proxy="http://${BIND_HOST}:${BIND_PORT}"
+export https_proxy="http://${BIND_HOST}:${BIND_PORT}"
+export all_proxy="socks5://${BIND_HOST}:${BIND_PORT}"
+export HTTP_PROXY="http://${BIND_HOST}:${BIND_PORT}"
+export HTTPS_PROXY="http://${BIND_HOST}:${BIND_PORT}"
+export ALL_PROXY="socks5://${BIND_HOST}:${BIND_PORT}"
+export no_proxy="${NO_PROXY_LIST}"
+export NO_PROXY="${NO_PROXY_LIST}"
+EOF
+
+  nohup python3 "$FORWARD_BIN" \
+      --bind "${BIND_HOST}:${BIND_PORT}" \
+      --target "${PROXY_HOST}" \
+      --log "$FORWARD_LOG" \
+      --pid "$PID_FILE" --quiet >/dev/null 2>&1 &
+
+  # 等端口真正就绪（最多 3 秒）
+  local i=0
+  while [ $i -lt 30 ]; do
+    port_open "$BIND_HOST" "$BIND_PORT" 1 && break
+    sleep 0.1; i=$((i+1))
+  done
+
+  log_line "MODE=forward ON ${BIND_HOST}:${BIND_PORT} -> ${PROXY_HOST} (pid $(fwd_pid))"
+  echo "[proxy] MODE=forward  ON  ${BIND_HOST}:${BIND_PORT} -> ${PROXY_HOST}"
+
+  # 真实连通验证（走本地转发端口）
+  local code
+  code=$(probe_http "$TEST_URL" "http://${BIND_HOST}:${BIND_PORT}")
+  if [ -n "$code" ] && [ "$code" != "000" ]; then
+    confirm_ok "本地转发 ${BIND_HOST}:${BIND_PORT} -> ${PROXY_HOST} 测试 ${TEST_URL} 返回 HTTP $code"
+  else
+    confirm_fail "本地转发端口已监听，但经转发访问 ${TEST_URL} 未成功（检查宿主代理是否开启）"
+  fi
+  echo "[proxy] 新开终端生效；当前终端执行：source ~/.proxy_env"
+}
+
+forward_off() {
+  local p
+  p=$(fwd_pid)
+  if [ -n "$p" ]; then
+    kill "$p" 2>/dev/null
+    local i=0
+    while [ $i -lt 30 ] && kill -0 "$p" 2>/dev/null; do sleep 0.1; i=$((i+1)); done
+    kill -9 "$p" 2>/dev/null
+    echo "[proxy] 转发已停止（PID $p）"
+    log_line "MODE=forward OFF (pid $p)"
+  else
+    pkill -f "proxy-forward --bind ${BIND_HOST}:${BIND_PORT}" 2>/dev/null
+    echo "[proxy] 转发未在运行（已清理残留）"
+    log_line "MODE=forward OFF (was not running)"
+  fi
+  rm -f "$PID_FILE" "$ENV_FILE"
+  echo "[proxy] 环境变量文件已移除；当前终端清理：unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY no_proxy NO_PROXY"
+}
+
+forward_status() {
+  if fwd_running; then
+    echo "[proxy] 转发：运行中 (PID $(fwd_pid))"
+    echo "[proxy] 监听：${BIND_HOST}:${BIND_PORT}  ->  上游 ${PROXY_HOST}"
+  else
+    echo "[proxy] 转发：未运行"
+  fi
+  echo -n "[proxy] 本地端口 ${BIND_HOST}:${BIND_PORT}: "
+  port_open "$BIND_HOST" "$BIND_PORT" 2 && echo "listening" || echo "closed"
+  echo -n "[proxy] 上游 ${PROXY_HOST}: "
+  port_open "${PROXY_HOST%:*}" "${PROXY_HOST#*:}" 3 && echo "reachable" || echo "UNREACHABLE"
+}
+
+# ---------------- shared verbs ----------------
+do_on() {
+  case "$MODE" in
+    forward) forward_on ;;
+    *)       env_on ;;
+  esac
 }
 
 do_off() {
-  rm -f "$ENV_FILE"
-  log_line "OFF"
-  echo "[proxy] OFF (env file removed; new terminals will be direct)"
-  echo "[proxy] current shell cleanup: unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY no_proxy NO_PROXY"
+  # 两种模式的产物都清掉，避免残留串味
+  case "$MODE" in
+    forward) forward_off ;;
+    *)       forward_off >/dev/null 2>&1 || true; env_off ;;
+  esac
+}
+
+do_mode() {
+  case "${1:-show}" in
+    env|forward)
+      MODE="$1"
+      if grep -qE '^\s*MODE=' "$CONF_FILE" 2>/dev/null; then
+        sed -i "s|^\s*MODE=.*|MODE=\"$1\"|" "$CONF_FILE"
+      else
+        printf 'MODE="%s"\n' "$1" >> "$CONF_FILE"
+      fi
+      log_line "MODE set to $1"
+      echo "[proxy] 模式已切换：$1"
+      echo "[proxy] 说明：env=环境变量直连宿主代理（旧行为）；forward=本地端口转发"
+      ;;
+    show|"")
+      echo "[proxy] 当前模式：$MODE"
+      ;;
+    *)
+      echo "usage: proxy mode env|forward|show"; return 1 ;;
+  esac
 }
 
 do_test() {
   local d v
-  d=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$TEST_URL" 2>/dev/null)
-  v=$(curl -x "http://${PROXY_HOST}" -s -o /dev/null -w '%{http_code}' --max-time 12 "$TEST_URL" 2>/dev/null)
-  echo "[proxy] direct    ${TEST_URL}: ${d:-fail}"
-  echo "[proxy] via-proxy ${TEST_URL}: ${v:-fail}"
-  log_line "TEST direct=${d:-fail} via=${v:-fail}"
+  d=$(probe_http "$TEST_URL")
+  echo "[proxy] 直连        ${TEST_URL}: ${d:-fail}"
+
+  if [ "$MODE" = "forward" ]; then
+    v=$(probe_http "$TEST_URL" "http://${BIND_HOST}:${BIND_PORT}")
+    echo "[proxy] 本地转发    http://${BIND_HOST}:${BIND_PORT}: ${v:-fail}"
+    log_line "TEST direct=${d:-fail} local=${v:-fail}"
+    if [ -n "$v" ] && [ "$v" != "000" ]; then
+      confirm_ok "经本地转发访问 ${TEST_URL} 返回 HTTP $v"
+    else
+      confirm_fail "经本地转发访问 ${TEST_URL} 失败"
+    fi
+  else
+    v=$(probe_http "$TEST_URL" "http://${PROXY_HOST}")
+    echo "[proxy] 宿主代理    http://${PROXY_HOST}: ${v:-fail}"
+    log_line "TEST direct=${d:-fail} via=${v:-fail}"
+    if [ -n "$v" ] && [ "$v" != "000" ]; then
+      confirm_ok "经宿主代理访问 ${TEST_URL} 返回 HTTP $v"
+    else
+      confirm_fail "经宿主代理访问 ${TEST_URL} 失败"
+    fi
+  fi
 }
 
 do_status() {
+  echo "[proxy] 模式：$MODE"
   if [ -f "$ENV_FILE" ]; then
-    echo "[proxy] state: ON (applies to NEW terminals)"
+    echo "[proxy] 环境变量：ON（新开终端生效）"
   else
-    echo "[proxy] state: OFF"
+    echo "[proxy] 环境变量：OFF"
   fi
-  echo "[proxy] bridge: ${PROXY_HOST}"
-  echo -n "[proxy] host proxy port: "
-  if timeout 3 bash -c "cat < /dev/null > /dev/tcp/${PROXY_HOST%:*}/${PROXY_HOST#*:}" 2>/dev/null; then
-    echo "reachable"
-  else
-    echo "UNREACHABLE (is the host proxy running?)"
-  fi
+  echo "[proxy] 上游：${PROXY_HOST}"
+  echo -n "[proxy] 上游端口："
+  port_open "${PROXY_HOST%:*}" "${PROXY_HOST#*:}" 3 && echo "reachable" || echo "UNREACHABLE (宿主代理未开启?)"
+  [ "$MODE" = "forward" ] && forward_status
   do_test
 }
 
-case "$1" in
-  on) do_on ;;
-  off) do_off ;;
-  status) do_status ;;
-  test) do_test ;;
-  *) echo "usage: proxy on|off|status|test"; exit 1 ;;
+# ---------------- dispatch ----------------
+case "${1:-}" in
+  on)             do_on ;;
+  off)            do_off ;;
+  status)         do_status ;;
+  test)           do_test ;;
+  mode)           do_mode "${2:-show}" ;;
+  forward-on)     MODE=forward; forward_on ;;
+  forward-off)    forward_off ;;
+  forward-status) forward_status ;;
+  *)
+    cat <<'USAGE'
+usage: proxy <command>
+  on | off | status | test        按当前模式操作
+  mode env | forward | show       切换/查看模式
+  forward-on | forward-off | forward-status
+                                  直接操作转发模式（不改 MODE 配置）
+USAGE
+    exit 1 ;;
 esac

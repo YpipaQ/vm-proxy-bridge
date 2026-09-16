@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""proxy-forward - 本地端口转发器（零依赖，Python 标准库）
+
+把宿主机代理 (HOST:PORT) 映射到本机回环端口 (BIND_ADDR:BIND_PORT)，
+让不读环境变量的程序也能通过 127.0.0.1 使用宿主机代理。
+
+用法:
+    proxy-forward [--bind 127.0.0.1:7897] [--target 192.168.18.1:7897]
+                  [--log FILE] [--pid FILE] [--quiet]
+
+设计要点:
+  * 纯 TCP 透传（第 4 层），HTTP/HTTPS/SOCKS5 均适用——不解包、不终止 TLS
+  * 双向 relay + 空闲超时回收，避免连接泄漏
+  * SIGTERM/SIGINT 优雅退出并清理 pid 文件
+  * 单实例保护：重复启动时若端口被占，直接报错并给出提示
+"""
+import argparse
+import errno
+import os
+import select
+import signal
+import socket
+import sys
+import threading
+import time
+
+DEFAULT_BIND = "127.0.0.1:7897"
+DEFAULT_TARGET = "192.168.18.1:7897"
+IDLE_TIMEOUT = 300          # 连接空闲多久后回收（秒）
+CONNECT_TIMEOUT = 8         # 连接宿主机代理的超时
+BUF_SIZE = 65536
+
+# 安全：只允许绑定回环地址。绑定到 0.0.0.0 会把无鉴权的转发端口暴露给
+# 整个局域网（等于开放代理），因此这里硬性拒绝，除非显式 --allow-remote。
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def ts():
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+class Logger:
+    """同时写日志文件与 stdout（--quiet 时只写文件）"""
+
+    def __init__(self, path=None, quiet=False):
+        self.path = path
+        self.quiet = quiet
+        self._lock = threading.Lock()
+
+    def __call__(self, msg):
+        line = f"[{ts()}] {msg}"
+        with self._lock:
+            if self.path:
+                try:
+                    with open(self.path, "a", encoding="utf-8") as f:
+                        f.write(line + "\n")
+                except OSError:
+                    pass
+            if not self.quiet:
+                print(line, flush=True)
+
+
+class Forwarder:
+    def __init__(self, bind_host, bind_port, target_host, target_port, log):
+        self.bind = (bind_host, bind_port)
+        self.target = (target_host, target_port)
+        self.log = log
+        self._stop = threading.Event()
+        self._srv = None
+        self._conns = 0
+        self._active = 0
+
+    # ---------- 生命周期 ----------
+    def serve_forever(self):
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            srv.bind(self.bind)
+        except OSError as exc:
+            if exc.errno == errno.EADDRINUSE:
+                self.log(f"FATAL 端口已被占用 {self.bind[0]}:{self.bind[1]}"
+                         f"（可能已有转发器在跑，先执行 proxy forward-off）")
+            else:
+                self.log(f"FATAL 绑定失败 {self.bind[0]}:{self.bind[1]} -> {exc}")
+            return 1
+        srv.listen(128)
+        srv.settimeout(1.0)
+        self._srv = srv
+        self.log(f"LISTEN {self.bind[0]}:{self.bind[1]} -> "
+                 f"{self.target[0]}:{self.target[1]}  转发已启动")
+
+        # 首连自检：确认宿主机代理真的可达，给用户明确反馈
+        self._selftest()
+
+        while not self._stop.is_set():
+            try:
+                client, addr = srv.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            threading.Thread(target=self._handle, args=(client, addr),
+                             daemon=True).start()
+
+        try:
+            srv.close()
+        except OSError:
+            pass
+        self.log("转发已停止")
+        return 0
+
+    def _selftest(self):
+        """启动时探测一次上游可达性，结果写进日志"""
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(CONNECT_TIMEOUT)
+        try:
+            s.connect(self.target)
+            self.log(f"CHECK 上游 {self.target[0]}:{self.target[1]} 可达 ✓")
+        except OSError as exc:
+            self.log(f"WARN 上游 {self.target[0]}:{self.target[1]} 当前不可达"
+                     f"（{exc}）；转发器仍会监听，等上游恢复后自动可用")
+        finally:
+            s.close()
+
+    def stop(self):
+        self._stop.set()
+        if self._srv:
+            try:
+                self._srv.close()
+            except OSError:
+                pass
+
+    # ---------- 连接处理 ----------
+    def _handle(self, client, addr):
+        self._conns += 1
+        self._active += 1
+        n = self._conns
+        up = None
+        try:
+            up = socket.create_connection(self.target, timeout=CONNECT_TIMEOUT)
+            up.settimeout(None)
+            client.settimeout(None)
+            self.log(f"CONN #{n} {addr[0]}:{addr[1]} -> {self.target[0]}:{self.target[1]} 已建立")
+            self._relay(client, up)
+        except OSError as exc:
+            self.log(f"CONN #{n} {addr[0]}:{addr[1]} 上游连接失败: {exc}")
+        finally:
+            for s in (client, up):
+                if s:
+                    try:
+                        s.close()
+                    except OSError:
+                        pass
+            self._active -= 1
+
+    def _relay(self, a, b):
+        """双向透传，任一方向 EOF 即结束该连接"""
+        socks = [a, b]
+        while not self._stop.is_set():
+            try:
+                r, _, _ = select.select(socks, [], [], IDLE_TIMEOUT)
+            except (OSError, ValueError):
+                break
+            if not r:       # 空闲超时
+                break
+            for s in r:
+                other = b if s is a else a
+                try:
+                    data = s.recv(BUF_SIZE)
+                except OSError:
+                    return
+                if not data:
+                    return
+                try:
+                    other.sendall(data)
+                except OSError:
+                    return
+
+
+def parse_addr(text, default):
+    text = (text or default).strip()
+    if ":" not in text:
+        raise argparse.ArgumentTypeError(f"地址格式应为 host:port，收到：{text}")
+    h, p = text.rsplit(":", 1)
+    try:
+        return h, int(p)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"端口必须是数字：{text}")
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="proxy-forward",
+                                 description="本地端口转发：把宿主机代理映射为 127.0.0.1 端口")
+    ap.add_argument("--bind", default=DEFAULT_BIND,
+                    help=f"本地监听地址（默认 {DEFAULT_BIND}）")
+    ap.add_argument("--target", default=DEFAULT_TARGET,
+                    help=f"上游代理地址（默认 {DEFAULT_TARGET}）")
+    ap.add_argument("--log", default=os.path.expanduser("~/.proxy.log"),
+                    help="日志文件（默认 ~/.proxy.log）")
+    ap.add_argument("--pid", default=os.path.expanduser("~/.proxy-forward.pid"),
+                    help="pid 文件路径")
+    ap.add_argument("--quiet", action="store_true", help="不输出到终端（只写日志）")
+    ap.add_argument("--allow-remote", action="store_true",
+                    help="危险：允许绑定非回环地址（会把代理暴露给局域网，仅在明确需要时使用）")
+    args = ap.parse_args(argv)
+
+    bh, bp = parse_addr(args.bind, DEFAULT_BIND)
+    th, tp = parse_addr(args.target, DEFAULT_TARGET)
+
+    # 安全闸门：默认只允许回环绑定
+    if bh not in LOOPBACK_HOSTS and not args.allow_remote:
+        print(f"[proxy-forward] 拒绝绑定非回环地址 {bh}："
+              f"这会把无鉴权的转发端口暴露给局域网。"
+              f"确实需要请加 --allow-remote。", file=sys.stderr)
+        return 2
+
+    log = Logger(args.log, args.quiet)
+
+    fwd = Forwarder(bh, bp, th, tp, log)
+
+    # 写 pid 文件（供 CLI 停用）
+    try:
+        with open(args.pid, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
+
+    def on_signal(signum, _frame):
+        log(f"收到信号 {signum}，正在停止…")
+        fwd.stop()
+
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGINT, on_signal)
+
+    try:
+        rc = fwd.serve_forever()
+    finally:
+        try:
+            if os.path.exists(args.pid):
+                with open(args.pid, encoding="utf-8") as f:
+                    if f.read().strip() == str(os.getpid()):
+                        os.remove(args.pid)
+        except OSError:
+            pass
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())
