@@ -1,0 +1,10 @@
+# 运行时/构建痕迹（可再生）。注意 vendor/ 是离线依赖轮子，算源，**不要**忽略。
+.venv-dev/
+.venv/
+build/
+dist/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.egg-info/
+*.log

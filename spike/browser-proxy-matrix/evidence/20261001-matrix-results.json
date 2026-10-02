@@ -1,0 +1,1114 @@
+{
+  "cases_file": "cases.json",
+  "restored_gsettings": true,
+  "probe_ports": {
+    "A": 17897,
+    "B": 17896,
+    "origin_A": 17898
+  },
+  "results": [
+    {
+      "id": "C00-chrome-flag-only",
+      "browser": "chrome",
+      "expect": "proxied",
+      "measured": "A",
+      "verdict": "PASS",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "single_proxy": [
+            "[127.0.0.1:17897]"
+          ]
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "仪器自检：命令行通道，不看系统代理也应命中 A"
+    },
+    {
+      "id": "C01-chrome-nothing",
+      "browser": "chrome",
+      "expect": "direct",
+      "measured": "timeout",
+      "verdict": "PASS",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "仪器自检：什么都不给，必须直连（证明没有假阳性）"
+    },
+    {
+      "id": "C02-gs-manual-no-ident",
+      "browser": "chrome",
+      "expect": "direct",
+      "measured": "timeout",
+      "verdict": "PASS",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "只有系统代理、无桌面标识"
+    },
+    {
+      "id": "C03-gs-manual-GNOME",
+      "browser": "chrome",
+      "expect": "proxied",
+      "measured": "A",
+      "verdict": "PASS",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "已知通路：系统代理 + GNOME 标识"
+    },
+    {
+      "id": "C04-gs-manual-XFCE",
+      "browser": "chrome",
+      "expect": "direct",
+      "measured": "timeout",
+      "verdict": "PASS",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "本机真实桌面值"
+    },
+    {
+      "id": "C05-gs-manual-gnome-lower",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：标识大小写敏感吗"
+    },
+    {
+      "id": "C06-gs-manual-ubuntu-GNOME",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：发行版前缀形式（Ubuntu 实际取值）认不认"
+    },
+    {
+      "id": "C07-gs-manual-GNOME-Classic",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：GNOME 变体（前缀匹配？）"
+    },
+    {
+      "id": "C08-gs-manual-KDE",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：KDE 通道是否也读系统代理（本机无 kioslaverc）"
+    },
+    {
+      "id": "C09-desktop-session-only",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：只有 DESKTOP_SESSION=gnome 够不够"
+    },
+    {
+      "id": "C10-gdm-session-only",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：只有 GDMSESSION=gnome 够不够"
+    },
+    {
+      "id": "C11-empty-ident",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：空字符串标识（桌面环境常留空）"
+    },
+    {
+      "id": "C12-env-http-proxy",
+      "browser": "chrome",
+      "expect": "proxied",
+      "measured": "A",
+      "verdict": "PASS",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "环境变量通道（小写）"
+    },
+    {
+      "id": "C13-env-HTTP-PROXY-upper",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 2.9,
+      "hit_latency_s": 0.8,
+      "netlog_configs": [
+        {
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：大写 HTTP_PROXY 认不认"
+    },
+    {
+      "id": "C14-env-all-proxy",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.2,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "single_proxy": [
+            "[127.0.0.1:17897]"
+          ]
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：只有 all_proxy 够不够"
+    },
+    {
+      "id": "C15-env-B-vs-gs-A-GNOME",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：系统代理(A) 与环境变量(B) 谁优先"
+    },
+    {
+      "id": "C16-env-B-vs-gs-A-no-ident",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "B",
+      "verdict": "INFO",
+      "channels": [
+        "B"
+      ],
+      "hits": [
+        "B GET http://proxy-test.invalid/m",
+        "B GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17896]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：无桌面标识时环境变量是否照常生效"
+    },
+    {
+      "id": "C17-flag-B-vs-gs-A-GNOME",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "B",
+      "verdict": "INFO",
+      "channels": [
+        "B"
+      ],
+      "hits": [
+        "B GET http://proxy-test.invalid/m",
+        "B GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.2,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "single_proxy": [
+            "[127.0.0.1:17896]"
+          ]
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：命令行(B) 与系统代理(A) 谁优先"
+    },
+    {
+      "id": "C18-noproxy-flag-vs-gs-A",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：--no-proxy-server 能否压掉系统代理"
+    },
+    {
+      "id": "C19-pac-GNOME",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "from_system": true,
+          "pac_url": "http://127.0.0.1:17898/proxy.pac"
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：PAC 通道（mode=auto）是否也走这条路"
+    },
+    {
+      "id": "C20-pac-no-ident",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "new_config": {}
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：PAC 是否同样被标识卡住"
+    },
+    {
+      "id": "C21-GNOME-no-session-bus",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.1,
+      "hit_latency_s": 1.0,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 27,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：没有会话总线还能读 gsettings 吗（影响裸启动器/定时任务）"
+    },
+    {
+      "id": "C22-GNOME-bogus-session-bus",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：总线地址坏掉时的行为（超时？回退？）"
+    },
+    {
+      "id": "C23-GNOME-gsettings-memory",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.1,
+      "hit_latency_s": null,
+      "netlog_configs": [
+        {
+          "from_system": true
+        }
+      ],
+      "netlog_host_requested": 41,
+      "netlog_dns_errors": [
+        -105,
+        -105,
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：读不到后端时是否安全回退直连（不能崩）"
+    },
+    {
+      "id": "C24-GNOME-alien-HOME",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 3.3,
+      "hit_latency_s": 1.2,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 28,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：读的是不是'该用户 dconf 库'（换 HOME 应读不到）"
+    },
+    {
+      "id": "C25-GNOME-minimal-env",
+      "browser": "chrome",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m",
+        "A GET http://proxy-test.invalid/favicon.ico"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": false,
+      "dom_mentions_host": false,
+      "dom_error_codes": [],
+      "status": "killed_after_hit",
+      "seconds": 2.5,
+      "hit_latency_s": 0.4,
+      "netlog_configs": [
+        {
+          "bypass_list": [
+            "localhost",
+            "127.0.0.0/8",
+            "::1"
+          ],
+          "from_system": true,
+          "proxy_per_scheme": {
+            "http": [
+              "[127.0.0.1:17897]"
+            ]
+          }
+        }
+      ],
+      "netlog_host_requested": 27,
+      "netlog_dns_errors": [
+        -105,
+        -105
+      ],
+      "netlog_truncated": true,
+      "note": "问：裸启动器环境（无总线/无 runtime dir）下还能不能读"
+    },
+    {
+      "id": "F00-firefox-manual",
+      "browser": "firefox",
+      "expect": "proxied",
+      "measured": "A",
+      "verdict": "PASS",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "exit",
+      "seconds": 1.4,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "仪器自检：Firefox 手工代理通道"
+    },
+    {
+      "id": "F01-ff-default-no-ident",
+      "browser": "firefox",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "exit",
+      "seconds": 1.2,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "问：FF 默认(用系统代理)+系统代理，无桌面标识——不用伪装就通？"
+    },
+    {
+      "id": "F02-ff-default-GNOME",
+      "browser": "firefox",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "exit",
+      "seconds": 1.2,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "问：FF 在 GNOME 标识下是否同样生效"
+    },
+    {
+      "id": "F03-ff-system-env-only",
+      "browser": "firefox",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "exit",
+      "seconds": 1.2,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "问：FF 读不读 http_proxy 环境变量"
+    },
+    {
+      "id": "F04-ff-system-nothing",
+      "browser": "firefox",
+      "expect": "direct",
+      "measured": "timeout",
+      "verdict": "PASS",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.0,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "仪器自检：FF 系统代理模式 + 无任何配置 = 直连"
+    },
+    {
+      "id": "F05-ff-system-no-session-bus",
+      "browser": "firefox",
+      "expect": "any",
+      "measured": "A",
+      "verdict": "INFO",
+      "channels": [
+        "A"
+      ],
+      "hits": [
+        "A GET http://proxy-test.invalid/m"
+      ],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "exit",
+      "seconds": 1.2,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "问：FF 读系统代理是否也依赖会话总线"
+    },
+    {
+      "id": "F06-ff-system-pac",
+      "browser": "firefox",
+      "expect": "any",
+      "measured": "timeout",
+      "verdict": "INFO",
+      "channels": [],
+      "hits": [],
+      "pac_fetch": false,
+      "marker_in_output": null,
+      "dom_mentions_host": null,
+      "dom_error_codes": [],
+      "status": "timeout",
+      "seconds": 12.0,
+      "hit_latency_s": null,
+      "netlog_configs": null,
+      "netlog_host_requested": null,
+      "netlog_dns_errors": null,
+      "netlog_truncated": null,
+      "note": "问：FF 系统代理模式下 PAC 是否可用"
+    }
+  ]
+}

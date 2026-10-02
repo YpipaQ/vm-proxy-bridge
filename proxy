@@ -1,0 +1,3 @@
+#!/bin/sh
+# proxy-bridge v2 入口（由 proxybridge.entry 生成）
+exec "/home/ypipaq/project/proxy-bridge/.venv-dev/bin/python" -m proxybridge "$@"

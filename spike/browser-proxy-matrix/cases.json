@@ -1,0 +1,291 @@
+{
+  "_doc": [
+    "浏览器代理读取矩阵。每条用例只变一个自变量，目标主机 proxy-test.invalid 永远解析不了，",
+    "所以'探针收到请求'=确实把请求交给了代理（A=127.0.0.1:17897，B=127.0.0.1:17896）。",
+    "expect: proxied=必须走代理 / direct=必须不走 / any=本次只想观测（写在 note 里的是问题）"
+  ],
+  "cases": [
+    {
+      "id": "C00-chrome-flag-only",
+      "browser": "chrome",
+      "gsettings": {"mode": "none"},
+      "flags": ["--proxy-server=http://127.0.0.1:PROBE_A"],
+      "expect": "proxied",
+      "note": "仪器自检：命令行通道，不看系统代理也应命中 A"
+    },
+    {
+      "id": "C01-chrome-nothing",
+      "browser": "chrome",
+      "gsettings": {"mode": "none"},
+      "expect": "direct",
+      "note": "仪器自检：什么都不给，必须直连（证明没有假阳性）"
+    },
+    {
+      "id": "C02-gs-manual-no-ident",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "expect": "direct",
+      "note": "只有系统代理、无桌面标识"
+    },
+    {
+      "id": "C03-gs-manual-GNOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "expect": "proxied",
+      "note": "已知通路：系统代理 + GNOME 标识"
+    },
+    {
+      "id": "C04-gs-manual-XFCE",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "XFCE"},
+      "expect": "direct",
+      "note": "本机真实桌面值"
+    },
+    {
+      "id": "C05-gs-manual-gnome-lower",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "gnome"},
+      "expect": "any",
+      "note": "问：标识大小写敏感吗"
+    },
+    {
+      "id": "C06-gs-manual-ubuntu-GNOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "ubuntu:GNOME"},
+      "expect": "any",
+      "note": "问：发行版前缀形式（Ubuntu 实际取值）认不认"
+    },
+    {
+      "id": "C07-gs-manual-GNOME-Classic",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME-Classic"},
+      "expect": "any",
+      "note": "问：GNOME 变体（前缀匹配？）"
+    },
+    {
+      "id": "C08-gs-manual-KDE",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "KDE"},
+      "expect": "any",
+      "note": "问：KDE 通道是否也读系统代理（本机无 kioslaverc）"
+    },
+    {
+      "id": "C09-desktop-session-only",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": null, "DESKTOP_SESSION": "gnome"},
+      "expect": "any",
+      "note": "问：只有 DESKTOP_SESSION=gnome 够不够"
+    },
+    {
+      "id": "C10-gdm-session-only",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": null, "GDMSESSION": "gnome"},
+      "expect": "any",
+      "note": "问：只有 GDMSESSION=gnome 够不够"
+    },
+    {
+      "id": "C11-empty-ident",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": ""},
+      "expect": "any",
+      "note": "问：空字符串标识（桌面环境常留空）"
+    },
+    {
+      "id": "C12-env-http-proxy",
+      "browser": "chrome",
+      "gsettings": {"mode": "none"},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"http_proxy": "http://127.0.0.1:PROBE_A"},
+      "expect": "proxied",
+      "note": "环境变量通道（小写）"
+    },
+    {
+      "id": "C13-env-HTTP-PROXY-upper",
+      "browser": "chrome",
+      "gsettings": {"mode": "none"},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"HTTP_PROXY": "http://127.0.0.1:PROBE_A"},
+      "expect": "any",
+      "note": "问：大写 HTTP_PROXY 认不认"
+    },
+    {
+      "id": "C14-env-all-proxy",
+      "browser": "chrome",
+      "gsettings": {"mode": "none"},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"all_proxy": "http://127.0.0.1:PROBE_A"},
+      "expect": "any",
+      "note": "问：只有 all_proxy 够不够"
+    },
+    {
+      "id": "C15-env-B-vs-gs-A-GNOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env": {"http_proxy": "http://127.0.0.1:PROBE_B"},
+      "expect": "any",
+      "note": "问：系统代理(A) 与环境变量(B) 谁优先"
+    },
+    {
+      "id": "C16-env-B-vs-gs-A-no-ident",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"http_proxy": "http://127.0.0.1:PROBE_B"},
+      "expect": "any",
+      "note": "问：无桌面标识时环境变量是否照常生效"
+    },
+    {
+      "id": "C17-flag-B-vs-gs-A-GNOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "flags": ["--proxy-server=http://127.0.0.1:PROBE_B"],
+      "expect": "any",
+      "note": "问：命令行(B) 与系统代理(A) 谁优先"
+    },
+    {
+      "id": "C18-noproxy-flag-vs-gs-A",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "flags": ["--no-proxy-server"],
+      "expect": "any",
+      "note": "问：--no-proxy-server 能否压掉系统代理"
+    },
+    {
+      "id": "C19-pac-GNOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "auto", "autoconfig_url": "http://127.0.0.1:ORIGIN_A/proxy.pac"},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "expect": "any",
+      "note": "问：PAC 通道（mode=auto）是否也走这条路"
+    },
+    {
+      "id": "C20-pac-no-ident",
+      "browser": "chrome",
+      "gsettings": {"mode": "auto", "autoconfig_url": "http://127.0.0.1:ORIGIN_A/proxy.pac"},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "expect": "any",
+      "note": "问：PAC 是否同样被标识卡住"
+    },
+    {
+      "id": "C21-GNOME-no-session-bus",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env": {"DBUS_SESSION_BUS_ADDRESS": null},
+      "expect": "any",
+      "note": "问：没有会话总线还能读 gsettings 吗（影响裸启动器/定时任务）"
+    },
+    {
+      "id": "C22-GNOME-bogus-session-bus",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env": {"DBUS_SESSION_BUS_ADDRESS": "unix:path=/tmp/bpm/does-not-exist"},
+      "expect": "any",
+      "note": "问：总线地址坏掉时的行为（超时？回退？）"
+    },
+    {
+      "id": "C23-GNOME-gsettings-memory",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env": {"GSETTINGS_BACKEND": "memory"},
+      "expect": "any",
+      "note": "问：读不到后端时是否安全回退直连（不能崩）"
+    },
+    {
+      "id": "C24-GNOME-alien-HOME",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env": {"HOME": "/tmp/bpm/fakehome"},
+      "expect": "any",
+      "note": "问：读的是不是'该用户 dconf 库'（换 HOME 应读不到）"
+    },
+    {
+      "id": "C25-GNOME-minimal-env",
+      "browser": "chrome",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "env_base": "minimal",
+      "expect": "any",
+      "note": "问：裸启动器环境（无总线/无 runtime dir）下还能不能读"
+    },
+    {
+      "id": "F00-firefox-manual",
+      "browser": "firefox",
+      "gsettings": {"mode": "none"},
+      "prefs": {"network.proxy.type": 1, "network.proxy.http": "127.0.0.1",
+                "network.proxy.http_port": 17897, "network.proxy.ssl": "127.0.0.1",
+                "network.proxy.ssl_port": 17897},
+      "expect": "proxied",
+      "note": "仪器自检：Firefox 手工代理通道"
+    },
+    {
+      "id": "F01-ff-default-no-ident",
+      "browser": "firefox",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "expect": "any",
+      "note": "问：FF 默认(用系统代理)+系统代理，无桌面标识——不用伪装就通？"
+    },
+    {
+      "id": "F02-ff-default-GNOME",
+      "browser": "firefox",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "desktop": {"XDG_CURRENT_DESKTOP": "GNOME"},
+      "expect": "any",
+      "note": "问：FF 在 GNOME 标识下是否同样生效"
+    },
+    {
+      "id": "F03-ff-system-env-only",
+      "browser": "firefox",
+      "gsettings": {"mode": "none"},
+      "prefs": {"network.proxy.type": 5},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"http_proxy": "http://127.0.0.1:PROBE_A"},
+      "expect": "any",
+      "note": "问：FF 读不读 http_proxy 环境变量"
+    },
+    {
+      "id": "F04-ff-system-nothing",
+      "browser": "firefox",
+      "gsettings": {"mode": "none"},
+      "prefs": {"network.proxy.type": 5},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "expect": "direct",
+      "note": "仪器自检：FF 系统代理模式 + 无任何配置 = 直连"
+    },
+    {
+      "id": "F05-ff-system-no-session-bus",
+      "browser": "firefox",
+      "gsettings": {"mode": "manual", "http_host": "127.0.0.1", "http_port": "PROBE_A", "use_same_proxy": true},
+      "prefs": {"network.proxy.type": 5},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "env": {"DBUS_SESSION_BUS_ADDRESS": null},
+      "expect": "any",
+      "note": "问：FF 读系统代理是否也依赖会话总线"
+    },
+    {
+      "id": "F06-ff-system-pac",
+      "browser": "firefox",
+      "gsettings": {"mode": "auto", "autoconfig_url": "http://127.0.0.1:ORIGIN_A/proxy.pac"},
+      "prefs": {"network.proxy.type": 5},
+      "desktop": {"XDG_CURRENT_DESKTOP": null},
+      "expect": "any",
+      "note": "问：FF 系统代理模式下 PAC 是否可用"
+    }
+  ]
+}
