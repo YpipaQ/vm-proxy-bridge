@@ -37,8 +37,8 @@
 | 2 | `~/project/proxy-bridge/DESIGN-v2.md` | 架构、XDG 布局、防线、命令面、排期 |
 | 3 | `~/project/proxy-bridge/README.md` | v1 现状、三层接入、风险与回滚 |
 | 4 | `~/project/proxy-bridge/proxy`（758 行）、`proxy-forward`（250）、`proxy-ui.py`（537）、`test-proxy-ui.py`（117） | 要重构/平移的现有实现 |
-| 5 | `/home/ypipaq/DeepSeek-Harness/memory/2026-09-30/proxy会话注入事故.md` | 2026-09-30 登录循环事故与教训（**历史存档**：注入层已于 2026-10-01 取缔，不必再"做注入层前必读"） |
-| 6 | `/home/ypipaq/DeepSeek-Harness/AGENTS.md` | 工作区工作方式与落盘规则（交付前实跑、单写者、批量落盘…） |
+| 5 | `/home/ypipaq/backup/files/retired-workspaces/DeepSeek-Harness-20261002/memory/2026-09-30/proxy会话注入事故.md` | 2026-09-30 登录循环事故与教训（**历史存档**：注入层已于 2026-10-01 取缔，不必再"做注入层前必读"；那个工作区已于 **2026-10-02 整目录归档**，原路径 `/home/ypipaq/DeepSeek-Harness/` 不再存在） |
+| 6 | `/home/ypipaq/backup/files/retired-workspaces/DeepSeek-Harness-20261002/AGENTS.md` | 上一代工作区的工作方式与落盘规则（交付前实跑、单写者、批量落盘…）。**已被 `~/Work/AGENTS.md` 取代，只作历史参考** |
 
 ## 2. 先问 5 个决策（没有答案不要写代码）
 
